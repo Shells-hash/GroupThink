@@ -24,6 +24,8 @@ export const api = {
   register: (body) => request("POST", "/auth/register", body),
   login: (body) => request("POST", "/auth/login", body),
   me: () => request("GET", "/auth/me"),
+  forgotPassword: (email) => request("POST", "/auth/forgot-password", { email }),
+  resetPassword: (token, new_password) => request("POST", "/auth/reset-password", { token, new_password }),
 
   // Groups
   getGroups: () => request("GET", "/groups"),

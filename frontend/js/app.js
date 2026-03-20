@@ -1,7 +1,7 @@
 import { state, setUser, setToken, loadToken } from "./state.js";
 import { api } from "./api.js";
 import { route, navigate, initRouter } from "./router.js";
-import { renderLogin, renderRegister } from "./views/auth.js";
+import { renderLogin, renderRegister, renderForgotPassword, renderResetPassword } from "./views/auth.js";
 import { renderGroupsSidebar, showCreateGroupModal } from "./views/groups.js";
 import { renderThreadSidebar, showCreateThreadModal } from "./views/thread-list.js";
 import { renderChat } from "./views/chat.js";
@@ -91,6 +91,24 @@ async function requireAuth() {
 // ── Routes ──────────────────────────────────────────────────────────────────
 route("/login", () => renderLogin());
 route("/register", () => renderRegister());
+route("/forgot-password", () => renderForgotPassword());
+route("/reset-password", () => {
+  const token = new URLSearchParams(location.search).get("token") ||
+    location.hash.split("token=")[1];
+  renderResetPassword(token);
+});
+route("/oauth-callback", async () => {
+  const token = new URLSearchParams(location.search).get("token") ||
+    location.hash.split("token=")[1];
+  if (token) {
+    setToken(token);
+    try {
+      const user = await api.me();
+      setUser(user);
+    } catch {}
+  }
+  navigate("/groups");
+});
 
 route("/groups", async () => {
   if (!(await requireAuth())) return navigate("/login");

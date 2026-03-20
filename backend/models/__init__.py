@@ -5,5 +5,6 @@ from backend.models.thread import Thread
 from backend.models.message import Message
 from backend.models.plan import Plan
 from backend.models.plan_message import PlanMessage
+from backend.models.password_reset import PasswordResetToken
 
-__all__ = ["User", "Group", "GroupMembership", "Thread", "Message", "Plan", "PlanMessage"]
+__all__ = ["User", "Group", "GroupMembership", "Thread", "Message", "Plan", "PlanMessage", "PasswordResetToken"]

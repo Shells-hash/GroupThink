@@ -3,10 +3,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from starlette.middleware.sessions import SessionMiddleware
 import os
 
+from backend.config import get_settings
 from backend.database.engine import init_db
 from backend.routers import auth, groups, threads, messages, plans, websocket, plan_chat
+from backend.routers import google_auth
+
+settings = get_settings()
 
 
 @asynccontextmanager
@@ -22,6 +27,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# SessionMiddleware required for Google OAuth state handling
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,6 +40,7 @@ app.add_middleware(
 
 # API routers
 app.include_router(auth.router)
+app.include_router(google_auth.router)
 app.include_router(groups.router)
 app.include_router(threads.router)
 app.include_router(messages.router)
