@@ -14,7 +14,8 @@ export function initRouter() {
 }
 
 function _resolve() {
-  const hash = location.hash.slice(1) || "/";
+  const raw = location.hash.slice(1) || "/";
+  const hash = raw.split("?")[0]; // strip query string before route matching
   // Try exact match first, then pattern match
   for (const [pattern, handler] of Object.entries(routes)) {
     const params = _match(pattern, hash);
