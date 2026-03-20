@@ -21,6 +21,17 @@ oauth.register(
 )
 
 
+@router.get("/google/debug-redirect-uri")
+async def debug_redirect_uri(request: Request):
+    """Temporary debug endpoint — shows the exact redirect_uri being sent to Google."""
+    base = settings.base_url.rstrip("/")
+    return {
+        "redirect_uri": f"{base}/auth/google/callback",
+        "base_url_config": settings.base_url,
+        "request_base_url": str(request.base_url),
+    }
+
+
 @router.get("/google")
 async def google_login(request: Request):
     if not settings.google_client_id or not settings.google_client_secret:
