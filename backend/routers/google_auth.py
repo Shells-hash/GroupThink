@@ -25,8 +25,8 @@ oauth.register(
 async def google_login(request: Request):
     if not settings.google_client_id or not settings.google_client_secret:
         return RedirectResponse(url="/#/login?error=Google+sign-in+is+not+configured+on+this+server")
-    # Build redirect_uri — strip trailing slash to avoid double-slash
-    base = str(request.base_url).rstrip("/")
+    # Use BASE_URL from config so the redirect_uri is predictable and matches Google Console
+    base = settings.base_url.rstrip("/")
     redirect_uri = f"{base}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
