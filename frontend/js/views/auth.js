@@ -41,6 +41,11 @@ export function renderLogin() {
     </div>
   `;
 
+  // Show any error passed back in the URL (e.g. from OAuth redirect)
+  const hashQuery = location.hash.includes("?") ? location.hash.split("?")[1] : "";
+  const urlError = new URLSearchParams(hashQuery).get("error");
+  if (urlError) _showError(decodeURIComponent(urlError));
+
   document.getElementById("google-btn").addEventListener("click", () => {
     window.location.href = "/auth/google";
   });
