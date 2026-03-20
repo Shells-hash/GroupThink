@@ -1,0 +1,235 @@
+/* Plan view container */
+.plan-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.plan-view h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--sp-2);
+}
+
+.plan-summary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4) var(--sp-5);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+/* Section card */
+.plan-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.plan-section-header {
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+.plan-section-header .section-icon { font-size: 16px; }
+.plan-section-list { padding: var(--sp-2) 0; }
+
+.plan-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.plan-item:last-child { border-bottom: none; }
+
+.plan-item-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.goals .plan-item-dot    { background: var(--color-primary); }
+.decisions .plan-item-dot { background: var(--color-accent); }
+
+/* Action item row */
+.action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.action-item:last-child { border-bottom: none; }
+.action-checkbox {
+  width: 16px; height: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.action-content { flex: 1; }
+.action-task { font-size: 14px; line-height: 1.5; }
+.action-meta {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.action-meta .assignee::before { content: '@'; }
+
+/* Generate button area */
+.plan-actions {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+.plan-generated-at { font-size: 12px; color: var(--color-text-muted); }
+
+/* ── Split panel layout ───────────────────────────────────────── */
+.plan-split {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  height: calc(100vh - 57px); /* subtract header */
+  overflow: hidden;
+}
+
+/* Left: plan document */
+.plan-doc {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.plan-doc-header {
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  background: var(--color-surface);
+}
+#plan-doc-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* Right: AI conversation panel */
+.plan-chat-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.plan-chat-header {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.plan-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.plan-chat-intro {
+  background: var(--color-ai-bg);
+  border: 1px solid var(--color-ai-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.plan-chat-intro strong { color: var(--color-accent); display: block; margin-bottom: 6px; font-size: 13px; }
+
+.plan-chat-input-area {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.plan-chat-input {
+  width: 100%;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.plan-chat-input:focus { border-color: var(--color-primary); }
+
+/* Chat messages */
+.plan-chat-msg { display: flex; flex-direction: column; gap: 4px; }
+.plan-chat-msg-name { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.plan-chat-ai .plan-chat-msg-name { color: var(--color-accent); }
+.plan-chat-msg-bubble {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.plan-chat-user .plan-chat-msg-bubble {
+  background: var(--color-primary);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: var(--sp-1);
+}
+.plan-chat-ai .plan-chat-msg-bubble {
+  background: var(--color-ai-bg);
+  border: 1px solid var(--color-ai-border);
+  border-bottom-left-radius: var(--sp-1);
+}
+.plan-chat-error { border-color: var(--color-danger) !important; color: var(--color-danger) !important; }
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-2) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+  height: 16px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
