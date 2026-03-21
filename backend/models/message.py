@@ -17,3 +17,4 @@ class Message(Base):
 
     thread: Mapped["Thread"] = relationship(back_populates="messages")  # noqa: F821
     user: Mapped["User | None"] = relationship(back_populates="messages")  # noqa: F821
+    attachments: Mapped[list["MessageAttachment"]] = relationship(back_populates="message", cascade="all, delete-orphan")  # noqa: F821

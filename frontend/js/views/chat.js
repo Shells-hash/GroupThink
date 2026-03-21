@@ -6,6 +6,7 @@ import { renderMarkdown, initDiagrams, enhanceCodeBlocks } from "../markdown.js"
 
 let thinkingEl = null;
 let streamingAiBubble = null;
+let pendingAttachment = null; // { id, filename, content_type, url, is_image }
 
 export async function renderChat(groupId, threadId) {
   const thread = state.threads.find((t) => t.id === parseInt(threadId));
@@ -22,12 +23,16 @@ export async function renderChat(groupId, threadId) {
     </div>
     <div class="message-list" id="message-list"></div>
     <div class="chat-input-area">
+      <div class="attachment-preview" id="attachment-preview" style="display:none"></div>
       <div class="chat-input-row">
+        <button class="icon-btn" id="attach-btn" title="Attach file">📎</button>
+        <input type="file" id="file-input" style="display:none"
+          accept="image/*,.pdf,.txt,.md,.csv,.json" />
         <textarea class="chat-input" id="chat-input" rows="1"
           placeholder="Message… type @ai to ask the AI"></textarea>
         <button class="btn btn-primary" id="send-btn">Send</button>
       </div>
-      <div class="chat-hint">Tip: type <span class="ai-mention">@ai</span> to get AI help with planning</div>
+      <div class="chat-hint">Tip: type <span class="ai-mention">@ai</span> to get AI help with planning · 📎 attach images, PDFs, or text files</div>
     </div>
   `;
 
@@ -76,15 +81,42 @@ export async function renderChat(groupId, threadId) {
   document.getElementById("view-docs-btn").addEventListener("click", () => {
     navigate(`/groups/${groupId}/threads/${threadId}/docs`);
   });
+
+  // File upload
+  document.getElementById("attach-btn").addEventListener("click", () => {
+    document.getElementById("file-input").click();
+  });
+
+  document.getElementById("file-input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const btn = document.getElementById("attach-btn");
+    btn.textContent = "⏳";
+    btn.disabled = true;
+    try {
+      const att = await api.uploadFile(threadId, file);
+      pendingAttachment = att;
+      _showAttachmentPreview(att);
+    } catch (err) {
+      alert("Upload failed: " + err.message);
+    } finally {
+      btn.textContent = "📎";
+      btn.disabled = false;
+      e.target.value = "";
+    }
+  });
 }
 
 function _sendMessage() {
   const input = document.getElementById("chat-input");
   const content = input.value.trim();
-  if (!content) return;
-  sendMessage(content);
+  if (!content && !pendingAttachment) return;
+  const text = content || (pendingAttachment ? `@ai what do you see in this file?` : "");
+  sendMessage(text, pendingAttachment?.id || null);
   input.value = "";
   input.style.height = "auto";
+  pendingAttachment = null;
+  _clearAttachmentPreview();
 }
 
 function _renderMessages(messages) {
@@ -97,6 +129,10 @@ function _renderMessages(messages) {
   // Render diagrams in AI messages
   list.querySelectorAll(".message.ai").forEach((el) => initDiagrams(el));
   list.querySelectorAll(".message.ai").forEach((el) => enhanceCodeBlocks(el));
+  // Wire up edit buttons
+  list.querySelectorAll(".msg-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => _startEdit(parseInt(btn.dataset.id)));
+  });
 }
 
 function _appendMessage(msg) {
@@ -121,13 +157,24 @@ function _messageHTML(msg) {
   const isAI = msg.is_ai;
   const content = isAI ? renderMarkdown(msg.content) : _escapeHtml(msg.content);
   const bubbleClass = isAI ? "message-bubble markdown-body" : "message-bubble";
+  const attachmentsHTML = (msg.attachments || []).map((att) => {
+    if (att.is_image) {
+      return `<div class="msg-attachment"><img src="${att.url}" alt="${_escapeHtml(att.filename)}" class="msg-img" loading="lazy" /></div>`;
+    }
+    return `<div class="msg-attachment"><a href="${att.url}" target="_blank" class="msg-file-chip">${_fileIcon(att.content_type)} ${_escapeHtml(att.filename)}</a></div>`;
+  }).join("");
+  const editBtn = !isAI && isOwn
+    ? `<div class="msg-actions"><button class="msg-edit-btn" data-id="${msg.id}">Edit</button></div>`
+    : "";
   return `
-    <div class="message ${cls}">
+    <div class="message ${cls}" data-msg-id="${msg.id}">
       <div class="message-meta">
         <span class="username">${_escapeHtml(name)}</span>
         <span>${time}</span>
       </div>
+      ${attachmentsHTML}
       <div class="${bubbleClass}">${content}</div>
+      ${editBtn}
     </div>
   `;
 }
@@ -177,6 +224,71 @@ function _finalizeAiStream(msg) {
   }
   const list = document.getElementById("message-list");
   if (list) list.scrollTop = list.scrollHeight;
+}
+
+function _showAttachmentPreview(att) {
+  const el = document.getElementById("attachment-preview");
+  if (!el) return;
+  el.style.display = "flex";
+  el.innerHTML = att.is_image
+    ? `<div class="att-chip att-chip-img">
+        <img src="${att.url}" alt="${_escapeHtml(att.filename)}" />
+        <span>${_escapeHtml(att.filename)}</span>
+        <button class="att-remove" id="att-remove-btn">×</button>
+       </div>`
+    : `<div class="att-chip">
+        <span class="att-icon">${_fileIcon(att.content_type)}</span>
+        <span>${_escapeHtml(att.filename)}</span>
+        <button class="att-remove" id="att-remove-btn">×</button>
+       </div>`;
+  document.getElementById("att-remove-btn").addEventListener("click", () => {
+    pendingAttachment = null;
+    _clearAttachmentPreview();
+  });
+}
+
+function _clearAttachmentPreview() {
+  const el = document.getElementById("attachment-preview");
+  if (el) { el.style.display = "none"; el.innerHTML = ""; }
+}
+
+function _fileIcon(contentType) {
+  if (contentType === "application/pdf") return "📄";
+  if (contentType.startsWith("image/")) return "🖼";
+  if (contentType.startsWith("text/")) return "📝";
+  return "📎";
+}
+
+function _startEdit(messageId) {
+  const msgEl = document.querySelector(`[data-msg-id="${messageId}"]`);
+  if (!msgEl) return;
+  const bubble = msgEl.querySelector(".message-bubble");
+  const original = bubble.innerText;
+  bubble.innerHTML = `
+    <textarea class="edit-textarea">${_escapeHtml(original)}</textarea>
+    <div class="edit-actions">
+      <button class="btn btn-primary btn-sm" id="edit-save-${messageId}">Save</button>
+      <button class="btn btn-ghost btn-sm" id="edit-cancel-${messageId}">Cancel</button>
+    </div>
+  `;
+  bubble.querySelector("textarea").focus();
+
+  document.getElementById(`edit-cancel-${messageId}`).addEventListener("click", () => {
+    bubble.innerHTML = _escapeHtml(original);
+    bubble.style.whiteSpace = "pre-wrap";
+  });
+
+  document.getElementById(`edit-save-${messageId}`).addEventListener("click", async () => {
+    const newContent = bubble.querySelector("textarea").value.trim();
+    if (!newContent) return;
+    try {
+      await api.editMessage(messageId, newContent);
+      bubble.innerHTML = _escapeHtml(newContent);
+      bubble.style.whiteSpace = "pre-wrap";
+    } catch (e) {
+      alert("Edit failed: " + e.message);
+    }
+  });
 }
 
 function _showThinking() {

@@ -150,3 +150,104 @@
 
 /* Override white-space for AI markdown bubbles */
 .message.ai .message-bubble { white-space: normal; }
+
+/* File attachment preview in input area */
+.attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--color-border);
+}
+.att-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 13px;
+  max-width: 300px;
+}
+.att-chip-img img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+.att-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-remove {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.att-remove:hover { color: var(--color-danger); }
+
+/* Attachments in messages */
+.msg-attachment { margin-bottom: var(--sp-2); }
+.msg-img {
+  max-width: 320px;
+  max-height: 240px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  display: block;
+  cursor: pointer;
+}
+.msg-img:hover { opacity: 0.9; }
+.msg-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+.msg-file-chip:hover { background: var(--color-surface); }
+
+/* Message edit button */
+.msg-actions {
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.message:hover .msg-actions { opacity: 1; }
+.msg-edit-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.msg-edit-btn:hover { background: var(--color-surface-2); color: var(--color-text); }
+
+/* Inline edit textarea */
+.edit-textarea {
+  width: 100%;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: var(--sp-2) var(--sp-3);
+  resize: none;
+  outline: none;
+  min-height: 60px;
+}
+.edit-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  justify-content: flex-end;
+}

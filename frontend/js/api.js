@@ -46,6 +46,24 @@ export const api = {
     return request("GET", `/threads/${threadId}/messages${q ? "?" + q : ""}`);
   },
 
+  // Files
+  uploadFile: (threadId, file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch(`/threads/${threadId}/upload`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${state.token}` },
+      body: form,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Upload failed");
+      return data;
+    });
+  },
+
+  // Messages
+  editMessage: (messageId, content) => request("PUT", `/messages/${messageId}`, { content }),
+
   // Plans
   getPlan: (threadId) => request("GET", `/plans/${threadId}`),
   generatePlan: (threadId) => request("POST", `/plans/${threadId}/generate`),

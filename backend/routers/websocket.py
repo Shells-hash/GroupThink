@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from backend.database.engine import SessionLocal
 from backend.services import auth_service
 from backend.services.message_service import save_message
-from backend.services.ai_service import get_ai_reply_stream
+from backend.services.ai_service import get_ai_reply_stream, get_ai_vision_reply
 from backend.models.thread import Thread
 from backend.models.membership import GroupMembership
+from backend.models.attachment import MessageAttachment
 from backend.utils.websocket_manager import manager
 from backend.schemas.message import WSMessagePayload
 
@@ -62,8 +63,30 @@ async def websocket_endpoint(websocket: WebSocket, thread_id: int, token: str):
 
             db = _get_db_session()
             try:
-                # Persist and broadcast human message
-                msg = save_message(db, thread_id, payload.content, user_id=user_id)
+                # Save human message (with optional attachment)
+                msg = save_message(
+                    db, thread_id, payload.content,
+                    user_id=user_id, upload_id=payload.upload_id
+                )
+
+                # Build attachment info for broadcast
+                att_data = []
+                attachment = None
+                if payload.upload_id:
+                    attachment = db.query(MessageAttachment).filter(
+                        MessageAttachment.id == payload.upload_id
+                    ).first()
+                    if attachment:
+                        import os as _os
+                        att_data = [{
+                            "id": attachment.id,
+                            "filename": attachment.filename,
+                            "content_type": attachment.content_type,
+                            "file_size": attachment.file_size,
+                            "url": f"/uploads/{_os.path.basename(_os.path.dirname(attachment.file_path))}/{attachment.filename}",
+                            "is_image": attachment.content_type.startswith("image/"),
+                        }]
+
                 await manager.broadcast(
                     {
                         "type": "message",
@@ -74,6 +97,7 @@ async def websocket_endpoint(websocket: WebSocket, thread_id: int, token: str):
                         "content": msg.content,
                         "is_ai": False,
                         "created_at": msg.created_at,
+                        "attachments": att_data,
                     },
                     thread_id,
                 )
@@ -83,29 +107,59 @@ async def websocket_endpoint(websocket: WebSocket, thread_id: int, token: str):
                     await manager.broadcast(
                         {"type": "ai_thinking", "thread_id": thread_id}, thread_id
                     )
-                    # Stream tokens via WebSocket
-                    full_ai_text = ""
-                    async for token in get_ai_reply_stream(db, thread_id, payload.content, user.username):
-                        full_ai_text += token
+
+                    # Vision reply if image attached
+                    if attachment and attachment.content_type.startswith("image/"):
+                        import base64 as _b64
+                        with open(attachment.file_path, "rb") as f:
+                            img_b64 = _b64.b64encode(f.read()).decode()
+                        ai_text = get_ai_vision_reply(payload.content, img_b64, attachment.content_type)
+                        ai_msg = save_message(db, thread_id, ai_text, user_id=None, is_ai=True)
                         await manager.broadcast(
-                            {"type": "ai_delta", "thread_id": thread_id, "token": token},
+                            {
+                                "type": "ai_message_complete",
+                                "message_id": ai_msg.id,
+                                "thread_id": thread_id,
+                                "user_id": None,
+                                "username": "GroupThink AI",
+                                "content": ai_msg.content,
+                                "is_ai": True,
+                                "created_at": ai_msg.created_at,
+                                "attachments": [],
+                            },
                             thread_id,
                         )
-                    # Save complete message and broadcast final event
-                    ai_msg = save_message(db, thread_id, full_ai_text, user_id=None, is_ai=True)
-                    await manager.broadcast(
-                        {
-                            "type": "ai_message_complete",
-                            "message_id": ai_msg.id,
-                            "thread_id": thread_id,
-                            "user_id": None,
-                            "username": "GroupThink AI",
-                            "content": ai_msg.content,
-                            "is_ai": True,
-                            "created_at": ai_msg.created_at,
-                        },
-                        thread_id,
-                    )
+                    else:
+                        # Text context: include extracted file text if present
+                        content_with_context = payload.content
+                        if attachment and attachment.extracted_text:
+                            content_with_context = (
+                                f"{payload.content}\n\n"
+                                f"[Attached file: {attachment.filename}]\n{attachment.extracted_text[:3000]}"
+                            )
+                        # Stream tokens via WebSocket
+                        full_ai_text = ""
+                        async for token in get_ai_reply_stream(db, thread_id, content_with_context, user.username):
+                            full_ai_text += token
+                            await manager.broadcast(
+                                {"type": "ai_delta", "thread_id": thread_id, "token": token},
+                                thread_id,
+                            )
+                        ai_msg = save_message(db, thread_id, full_ai_text, user_id=None, is_ai=True)
+                        await manager.broadcast(
+                            {
+                                "type": "ai_message_complete",
+                                "message_id": ai_msg.id,
+                                "thread_id": thread_id,
+                                "user_id": None,
+                                "username": "GroupThink AI",
+                                "content": ai_msg.content,
+                                "is_ai": True,
+                                "created_at": ai_msg.created_at,
+                                "attachments": [],
+                            },
+                            thread_id,
+                        )
             finally:
                 db.close()
 

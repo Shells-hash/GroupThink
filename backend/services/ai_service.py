@@ -333,3 +333,48 @@ def draft_document(db: Session, thread_id: int, title: str, existing_content: st
     user_content += "\nWrite the complete Markdown document."
 
     return _complete([{"role": "user", "content": user_content}], DOC_DRAFT_SYSTEM_PROMPT, 2048)
+
+
+def get_ai_vision_reply(text: str, image_base64: str, mime_type: str) -> str:
+    """Non-streaming vision reply for messages containing images."""
+    p = settings.model_provider
+    if p == "anthropic":
+        import anthropic
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=768,
+            system=FACILITATOR_SYSTEM_PROMPT,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": image_base64}},
+                    {"type": "text", "text": text or "Describe this image and how it relates to our planning."},
+                ],
+            }],
+        )
+        return response.content[0].text
+    else:
+        # Groq vision model
+        from openai import OpenAI
+        if p == "groq":
+            client = OpenAI(api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1")
+            vision_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        elif p == "together":
+            client = OpenAI(api_key=settings.together_api_key, base_url="https://api.together.xyz/v1")
+            vision_model = "meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo"
+        else:
+            client = OpenAI(api_key="ollama", base_url=settings.ollama_base_url)
+            vision_model = settings.ollama_model
+        response = client.chat.completions.create(
+            model=vision_model,
+            max_tokens=768,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": text or "Describe this image and how it relates to our planning."},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_base64}"}},
+                ],
+            }],
+        )
+        return response.choices[0].message.content

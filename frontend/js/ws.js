@@ -24,12 +24,14 @@ export function disconnectWs() {
   if (socket) { socket.close(); socket = null; }
 }
 
-export function sendMessage(content) {
+export function sendMessage(content, uploadId = null) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     console.warn("WebSocket not connected");
     return;
   }
-  socket.send(JSON.stringify({ type: "message", content }));
+  const payload = { type: "message", content };
+  if (uploadId) payload.upload_id = uploadId;
+  socket.send(JSON.stringify(payload));
 }
 
 function _connect(threadId) {
