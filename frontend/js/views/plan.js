@@ -1,7 +1,7 @@
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { navigate } from "../router.js";
-import { renderMarkdown, initDiagrams } from "../markdown.js";
+import { renderMarkdown, initDiagrams, enhanceCodeBlocks } from "../markdown.js";
 
 export async function renderPlan(groupId, threadId) {
   const main = document.querySelector(".main-panel");
@@ -89,24 +89,57 @@ async function _sendMessage(threadId) {
   const content = input.value.trim();
   if (!content) return;
 
-  // Optimistically show user message
   _appendChatMessage({ role: "user", content, username: state.user?.username });
   input.value = "";
   input.style.height = "auto";
   btn.disabled = true;
   btn.textContent = "Thinking…";
 
-  // Show typing indicator
-  const typingId = _showTyping();
+  // Create streaming AI bubble
+  const streamEl = _createStreamingBubble();
 
   try {
-    const res = await api.sendPlanChat(threadId, content);
-    _removeTyping(typingId);
-    _appendChatMessage({ role: "assistant", content: res.ai_message.content, username: "GroupThink AI" });
-    if (res.plan) _renderPlanDoc(res.plan);
+    const res = await fetch(`/plan-chat/${threadId}/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${state.token}`,
+      },
+      body: JSON.stringify({ message: content }),
+    });
+
+    if (!res.ok) throw new Error("Request failed");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // keep incomplete line
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === "delta") {
+            fullText += event.text;
+            _updateStreamingBubble(streamEl, fullText);
+          } else if (event.type === "done") {
+            _finalizeStreamingBubble(streamEl, fullText);
+            if (event.plan) _renderPlanDoc(event.plan);
+          } else if (event.type === "error") {
+            _finalizeStreamingBubble(streamEl, `Error: ${event.message}`, true);
+          }
+        } catch {}
+      }
+    }
   } catch (e) {
-    _removeTyping(typingId);
-    _appendChatMessage({ role: "assistant", content: `Error: ${e.message}`, username: "GroupThink AI", isError: true });
+    _finalizeStreamingBubble(streamEl, `Error: ${e.message}`, true);
   } finally {
     btn.disabled = false;
     btn.textContent = "Send";
@@ -132,8 +165,54 @@ function _appendChatMessage({ role, content, username, isError }) {
     <div class="${bubbleClass}">${bubbleContent}</div>
   `;
   container.appendChild(el);
-  if (isAI) initDiagrams(el);
+  if (isAI) {
+    initDiagrams(el);
+    enhanceCodeBlocks(el);
+  }
   container.scrollTop = container.scrollHeight;
+}
+
+function _createStreamingBubble() {
+  const container = document.getElementById("plan-chat-messages");
+  if (!container) return null;
+  const el = document.createElement("div");
+  el.className = "plan-chat-msg plan-chat-ai streaming-bubble";
+  el.innerHTML = `
+    <div class="plan-chat-msg-name">GroupThink AI</div>
+    <div class="plan-chat-msg-bubble markdown-body streaming-content">
+      <div class="dot-pulse"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+function _updateStreamingBubble(el, text) {
+  if (!el) return;
+  const bubble = el.querySelector(".streaming-content");
+  if (!bubble) return;
+  bubble.innerHTML = renderMarkdown(text) + '<span class="cursor-blink">▋</span>';
+  const container = document.getElementById("plan-chat-messages");
+  if (container) container.scrollTop = container.scrollHeight;
+}
+
+function _finalizeStreamingBubble(el, text, isError = false) {
+  if (!el) return;
+  const bubble = el.querySelector(".streaming-content");
+  if (!bubble) return;
+  el.classList.remove("streaming-bubble");
+  if (isError) {
+    bubble.className = "plan-chat-msg-bubble plan-chat-error";
+    bubble.textContent = text;
+  } else {
+    bubble.className = "plan-chat-msg-bubble markdown-body";
+    bubble.innerHTML = renderMarkdown(text);
+    initDiagrams(el);
+    enhanceCodeBlocks(el);
+  }
+  const container = document.getElementById("plan-chat-messages");
+  if (container) container.scrollTop = container.scrollHeight;
 }
 
 function _showTyping() {

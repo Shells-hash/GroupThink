@@ -2,9 +2,10 @@ import { api } from "../api.js";
 import { state } from "../state.js";
 import { connectToThread, sendMessage, onWsMessage } from "../ws.js";
 import { navigate } from "../router.js";
-import { renderMarkdown, initDiagrams } from "../markdown.js";
+import { renderMarkdown, initDiagrams, enhanceCodeBlocks } from "../markdown.js";
 
 let thinkingEl = null;
+let streamingAiBubble = null;
 
 export async function renderChat(groupId, threadId) {
   const thread = state.threads.find((t) => t.id === parseInt(threadId));
@@ -39,6 +40,12 @@ export async function renderChat(groupId, threadId) {
   onWsMessage((msg) => {
     if (msg.type === "ai_thinking") {
       _showThinking();
+    } else if (msg.type === "ai_delta") {
+      _removeThinking();
+      _appendAiDelta(msg.token);
+    } else if (msg.type === "ai_message_complete") {
+      _finalizeAiStream(msg);
+      state.messages.push(msg);
     } else if (msg.type === "message") {
       _removeThinking();
       state.messages.push(msg);
@@ -89,6 +96,7 @@ function _renderMessages(messages) {
   list.scrollTop = list.scrollHeight;
   // Render diagrams in AI messages
   list.querySelectorAll(".message.ai").forEach((el) => initDiagrams(el));
+  list.querySelectorAll(".message.ai").forEach((el) => enhanceCodeBlocks(el));
 }
 
 function _appendMessage(msg) {
@@ -100,6 +108,7 @@ function _appendMessage(msg) {
   if (msg.is_ai) {
     const last = list.lastElementChild;
     initDiagrams(last);
+    enhanceCodeBlocks(last);
   }
   list.scrollTop = list.scrollHeight;
 }
@@ -121,6 +130,53 @@ function _messageHTML(msg) {
       <div class="${bubbleClass}">${content}</div>
     </div>
   `;
+}
+
+function _appendAiDelta(token) {
+  const list = document.getElementById("message-list");
+  if (!list) return;
+
+  if (!streamingAiBubble) {
+    // Create streaming bubble
+    const el = document.createElement("div");
+    el.className = "message ai";
+    el.innerHTML = `
+      <div class="message-meta">
+        <span class="username" style="color:var(--color-accent)">GroupThink AI</span>
+      </div>
+      <div class="message-bubble markdown-body streaming-content"></div>
+    `;
+    list.appendChild(el);
+    streamingAiBubble = el;
+  }
+
+  const bubble = streamingAiBubble.querySelector(".streaming-content");
+  if (bubble) {
+    bubble._rawText = (bubble._rawText || "") + token;
+    bubble.innerHTML = renderMarkdown(bubble._rawText) + '<span class="cursor-blink">▋</span>';
+  }
+  list.scrollTop = list.scrollHeight;
+}
+
+function _finalizeAiStream(msg) {
+  if (streamingAiBubble) {
+    const bubble = streamingAiBubble.querySelector(".streaming-content");
+    if (bubble) {
+      bubble.innerHTML = renderMarkdown(msg.content);
+      bubble.className = "message-bubble markdown-body";
+    }
+    // Add timestamp to meta
+    const meta = streamingAiBubble.querySelector(".message-meta");
+    if (meta) {
+      const time = new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      meta.insertAdjacentHTML("beforeend", `<span>${time}</span>`);
+    }
+    initDiagrams(streamingAiBubble);
+    enhanceCodeBlocks(streamingAiBubble);
+    streamingAiBubble = null;
+  }
+  const list = document.getElementById("message-list");
+  if (list) list.scrollTop = list.scrollHeight;
 }
 
 function _showThinking() {

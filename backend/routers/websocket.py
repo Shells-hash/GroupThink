@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.database.engine import SessionLocal
 from backend.services import auth_service
 from backend.services.message_service import save_message
-from backend.services.ai_service import get_ai_reply
+from backend.services.ai_service import get_ai_reply_stream
 from backend.models.thread import Thread
 from backend.models.membership import GroupMembership
 from backend.utils.websocket_manager import manager
@@ -83,11 +83,19 @@ async def websocket_endpoint(websocket: WebSocket, thread_id: int, token: str):
                     await manager.broadcast(
                         {"type": "ai_thinking", "thread_id": thread_id}, thread_id
                     )
-                    ai_text = get_ai_reply(db, thread_id, payload.content, user.username)
-                    ai_msg = save_message(db, thread_id, ai_text, user_id=None, is_ai=True)
+                    # Stream tokens via WebSocket
+                    full_ai_text = ""
+                    async for token in get_ai_reply_stream(db, thread_id, payload.content, user.username):
+                        full_ai_text += token
+                        await manager.broadcast(
+                            {"type": "ai_delta", "thread_id": thread_id, "token": token},
+                            thread_id,
+                        )
+                    # Save complete message and broadcast final event
+                    ai_msg = save_message(db, thread_id, full_ai_text, user_id=None, is_ai=True)
                     await manager.broadcast(
                         {
-                            "type": "message",
+                            "type": "ai_message_complete",
                             "message_id": ai_msg.id,
                             "thread_id": thread_id,
                             "user_id": None,

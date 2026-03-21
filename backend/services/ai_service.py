@@ -102,6 +102,26 @@ def generate_plan(db: Session, thread_id: int) -> dict:
     return json.loads(raw)
 
 
+PLAN_CHAT_CONVERSATIONAL_PROMPT = """You are a plan design assistant for GroupThink. You help teams design, refine, and structure plans through natural conversation.
+
+Be conversational, thoughtful, and helpful. Use **markdown formatting** — headers, bullet lists, bold text. Include **Mermaid diagrams** when they help illustrate flows, timelines, or structures (use ```mermaid code blocks with flowchart TD, gantt, sequenceDiagram, or mindmap).
+
+Ask clarifying questions when needed. Reference the current plan state and suggest concrete improvements. Help the group think through implications and next steps."""
+
+PLAN_UPDATE_PROMPT = """Read this planning conversation and return an updated plan as ONLY valid JSON — no other text:
+
+{
+  "goals": ["goal 1", ...],
+  "action_items": [{"task": "...", "assignee": "name or null", "due_date": "date or null"}, ...],
+  "decisions": ["decision 1", ...],
+  "summary": "2-4 sentence summary"
+}
+
+Rules:
+- Keep all previously established items unless explicitly changed
+- Add new goals, action items, or decisions mentioned in the latest exchange
+- Update summary to reflect the current state of the plan"""
+
 PLAN_CHAT_SYSTEM_PROMPT = """You are a plan design assistant for GroupThink. You help teams design, refine, and structure plans through conversation — like working with a smart collaborator.
 
 After EVERY response you MUST return ONLY valid JSON in this exact format (no other text, no markdown fences):
@@ -214,3 +234,79 @@ def draft_document(db: Session, thread_id: int, title: str, existing_content: st
         messages=[{"role": "user", "content": user_content}],
     )
     return response.content[0].text
+
+
+def get_plan_chat_stream(messages_for_ai: list[dict], current_plan: dict | None):
+    """Returns a streaming Anthropic context manager for plan chat.
+    messages_for_ai: list of {role, content} dicts already prepared for the API.
+    """
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    context_prefix = ""
+    if current_plan:
+        context_prefix = f"[Current plan: {json.dumps(current_plan)}]\n\n"
+
+    # Inject plan context into last user message
+    augmented = list(messages_for_ai)
+    if augmented and augmented[-1]["role"] == "user":
+        augmented[-1] = {"role": "user", "content": context_prefix + augmented[-1]["content"]}
+
+    return client.messages.stream(
+        model="claude-sonnet-4-6",
+        max_tokens=1536,
+        system=PLAN_CHAT_CONVERSATIONAL_PROMPT,
+        messages=augmented,
+    )
+
+
+def extract_plan_update(conversation_messages: list[dict], current_plan: dict | None) -> dict:
+    """Fast plan extraction using Haiku after a streaming reply."""
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    current = json.dumps(current_plan) if current_plan else "{}"
+    transcript = "\n".join(
+        f"[{m['role']}]: {m['content']}" for m in conversation_messages[-12:]
+    )
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        system=PLAN_UPDATE_PROMPT,
+        messages=[{"role": "user", "content": f"Current plan:\n{current}\n\nConversation:\n{transcript}"}],
+    )
+    raw = response.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    try:
+        return json.loads(raw)
+    except Exception:
+        return current_plan or {"goals": [], "action_items": [], "decisions": [], "summary": ""}
+
+
+async def get_ai_reply_stream(db: Session, thread_id: int, triggering_message: str, username: str):
+    """Async generator that yields tokens for streaming @ai replies."""
+    import anthropic as _anthropic
+    async_client = _anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    recent = get_recent_messages_for_context(db, thread_id, settings.ai_context_window)
+    context = _build_context_messages(recent)
+
+    if not context or context[-1]["content"] != f"[{username}]: {triggering_message}":
+        context.append({"role": "user", "content": f"[{username}]: {triggering_message}"})
+
+    merged: list[dict] = []
+    for msg in context:
+        if merged and merged[-1]["role"] == msg["role"]:
+            merged[-1]["content"] += "\n" + msg["content"]
+        else:
+            merged.append(dict(msg))
+
+    full_text = ""
+    async with async_client.messages.stream(
+        model="claude-sonnet-4-6",
+        max_tokens=768,
+        system=FACILITATOR_SYSTEM_PROMPT,
+        messages=merged,
+    ) as stream:
+        async for token in stream.text_stream:
+            full_text += token
+            yield token
+    return  # full_text is accumulated by the caller

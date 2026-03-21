@@ -147,3 +147,6 @@
   height: 1px;
   background: var(--color-border);
 }
+
+/* Override white-space for AI markdown bubbles */
+.message.ai .message-bubble { white-space: normal; }
