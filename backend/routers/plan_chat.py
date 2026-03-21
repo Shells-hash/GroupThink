@@ -216,15 +216,13 @@ def stream_plan_chat_message(
     username_snap = current_user.username
 
     def generate():
+        import json as _json
         full_text = ""
         try:
-            with get_plan_chat_stream(merged, current_plan_dict) as stream:
-                for token in stream.text_stream:
-                    full_text += token
-                    import json as _json
-                    yield f"data: {_json.dumps({'type': 'delta', 'text': token})}\n\n"
+            for token in get_plan_chat_stream(merged, current_plan_dict):
+                full_text += token
+                yield f"data: {_json.dumps({'type': 'delta', 'text': token})}\n\n"
         except Exception as e:
-            import json as _json
             yield f"data: {_json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
 
