@@ -8,7 +8,7 @@ import os
 
 from backend.config import get_settings
 from backend.database.engine import init_db
-from backend.routers import auth, groups, threads, messages, plans, websocket, plan_chat
+from backend.routers import auth, groups, threads, messages, plans, websocket, plan_chat, documents
 from backend.routers import google_auth
 
 settings = get_settings()
@@ -47,6 +47,7 @@ app.include_router(messages.router)
 app.include_router(plans.router)
 app.include_router(websocket.router)
 app.include_router(plan_chat.router)
+app.include_router(documents.router)
 
 # Serve frontend static files
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")

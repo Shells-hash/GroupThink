@@ -1,0 +1,96 @@
+/* Docs layout */
+.docs-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: calc(100vh - 57px);
+  overflow: hidden;
+}
+
+.docs-sidebar {
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  background: var(--color-surface);
+}
+
+.docs-sidebar-list { padding: var(--sp-2) 0; }
+
+.docs-sidebar-item {
+  padding: var(--sp-3) var(--sp-4);
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.1s;
+}
+.docs-sidebar-item:hover { background: var(--color-surface-2); }
+.docs-sidebar-item.active { background: var(--color-primary); }
+.docs-sidebar-item.active .docs-item-title { color: #fff; }
+.docs-sidebar-item.active .docs-item-meta { color: rgba(255,255,255,0.7); }
+
+.docs-item-title { font-size: 14px; font-weight: 500; color: var(--color-text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.docs-item-meta { font-size: 11px; color: var(--color-text-muted); }
+
+.docs-main {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.doc-editor-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.doc-title-input {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: var(--sp-1) var(--sp-2);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.doc-title-input:focus { border-color: var(--color-primary); background: var(--color-surface-2); }
+
+.doc-header-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+
+.doc-editor-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-textarea {
+  flex: 1;
+  background: var(--color-surface-2);
+  border: none;
+  color: var(--color-text);
+  padding: var(--sp-5) var(--sp-6);
+  font-size: 13px;
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+.doc-preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-6) min(10%, 80px);
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}

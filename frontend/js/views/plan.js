@@ -1,6 +1,7 @@
 import { api } from "../api.js";
 import { state } from "../state.js";
 import { navigate } from "../router.js";
+import { renderMarkdown, initDiagrams } from "../markdown.js";
 
 export async function renderPlan(groupId, threadId) {
   const main = document.querySelector(".main-panel");
@@ -121,15 +122,17 @@ function _renderChatHistory(messages) {
 function _appendChatMessage({ role, content, username, isError }) {
   const container = document.getElementById("plan-chat-messages");
   if (!container) return;
-
   const isAI = role === "assistant";
   const el = document.createElement("div");
   el.className = `plan-chat-msg ${isAI ? "plan-chat-ai" : "plan-chat-user"}`;
+  const bubbleContent = isAI ? renderMarkdown(content) : _esc(content);
+  const bubbleClass = `plan-chat-msg-bubble${isAI ? " markdown-body" : ""}${isError ? " plan-chat-error" : ""}`;
   el.innerHTML = `
     <div class="plan-chat-msg-name">${_esc(username || (isAI ? "GroupThink AI" : "You"))}</div>
-    <div class="plan-chat-msg-bubble ${isError ? "plan-chat-error" : ""}">${_esc(content)}</div>
+    <div class="${bubbleClass}">${bubbleContent}</div>
   `;
   container.appendChild(el);
+  if (isAI) initDiagrams(el);
   container.scrollTop = container.scrollHeight;
 }
 
@@ -171,7 +174,7 @@ function _renderPlanDoc(plan) {
   }
 
   body.innerHTML = `
-    ${plan.summary ? `<div class="plan-summary">${_esc(plan.summary)}</div>` : ""}
+    ${plan.summary ? `<div class="plan-summary markdown-body">${renderMarkdown(plan.summary)}</div>` : ""}
 
     ${plan.goals?.length ? `
       <div class="plan-section goals">

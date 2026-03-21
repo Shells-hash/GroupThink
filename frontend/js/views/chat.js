@@ -2,6 +2,7 @@ import { api } from "../api.js";
 import { state } from "../state.js";
 import { connectToThread, sendMessage, onWsMessage } from "../ws.js";
 import { navigate } from "../router.js";
+import { renderMarkdown, initDiagrams } from "../markdown.js";
 
 let thinkingEl = null;
 
@@ -15,6 +16,7 @@ export async function renderChat(groupId, threadId) {
       <h3>${thread ? "# " + thread.title : "Loading…"}</h3>
       <div class="header-actions">
         <button class="btn btn-ghost btn-sm" id="view-plan-btn">View Plan</button>
+        <button class="btn btn-ghost btn-sm" id="view-docs-btn">Docs</button>
       </div>
     </div>
     <div class="message-list" id="message-list"></div>
@@ -63,6 +65,10 @@ export async function renderChat(groupId, threadId) {
   document.getElementById("view-plan-btn").addEventListener("click", () => {
     navigate(`/groups/${groupId}/threads/${threadId}/plan`);
   });
+
+  document.getElementById("view-docs-btn").addEventListener("click", () => {
+    navigate(`/groups/${groupId}/threads/${threadId}/docs`);
+  });
 }
 
 function _sendMessage() {
@@ -81,6 +87,8 @@ function _renderMessages(messages) {
     ? messages.map(_messageHTML).join("")
     : `<div class="empty-state"><div class="empty-icon">💬</div><p>No messages yet.<br/>Start the conversation!</p></div>`;
   list.scrollTop = list.scrollHeight;
+  // Render diagrams in AI messages
+  list.querySelectorAll(".message.ai").forEach((el) => initDiagrams(el));
 }
 
 function _appendMessage(msg) {
@@ -89,6 +97,10 @@ function _appendMessage(msg) {
   const empty = list.querySelector(".empty-state");
   if (empty) empty.remove();
   list.insertAdjacentHTML("beforeend", _messageHTML(msg));
+  if (msg.is_ai) {
+    const last = list.lastElementChild;
+    initDiagrams(last);
+  }
   list.scrollTop = list.scrollHeight;
 }
 
@@ -97,14 +109,16 @@ function _messageHTML(msg) {
   const cls = msg.is_ai ? "ai" : isOwn ? "self" : "other";
   const name = msg.is_ai ? "GroupThink AI" : (msg.username || "Unknown");
   const time = new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const content = _escapeHtml(msg.content);
+  const isAI = msg.is_ai;
+  const content = isAI ? renderMarkdown(msg.content) : _escapeHtml(msg.content);
+  const bubbleClass = isAI ? "message-bubble markdown-body" : "message-bubble";
   return `
     <div class="message ${cls}">
       <div class="message-meta">
         <span class="username">${_escapeHtml(name)}</span>
         <span>${time}</span>
       </div>
-      <div class="message-bubble">${content}</div>
+      <div class="${bubbleClass}">${content}</div>
     </div>
   `;
 }

@@ -10,11 +10,23 @@
   <link rel="stylesheet" href="/static/components.css" />
   <link rel="stylesheet" href="/static/chat.css" />
   <link rel="stylesheet" href="/static/plan.css" />
+  <link rel="stylesheet" href="/static/docs.css" />
+  <link rel="stylesheet" href="/static/markdown.css" />
 </head>
 <body>
   <div id="app">
     <!-- Rendered by JavaScript -->
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+    }
+    if (window.marked) {
+      marked.setOptions({ breaks: true, gfm: true });
+    }
+  </script>
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

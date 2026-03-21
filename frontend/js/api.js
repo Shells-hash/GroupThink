@@ -53,4 +53,13 @@ export const api = {
   // Plan chat
   getPlanChat: (threadId) => request("GET", `/plan-chat/${threadId}`),
   sendPlanChat: (threadId, message) => request("POST", `/plan-chat/${threadId}`, { message }),
+
+  // Documents
+  getDocs: (threadId) => request("GET", `/threads/${threadId}/docs`),
+  createDoc: (threadId, body) => request("POST", `/threads/${threadId}/docs`, body),
+  generateDoc: (threadId, body) => request("POST", `/threads/${threadId}/docs/generate`, body),
+  getDoc: (docId) => request("GET", `/docs/${docId}`),
+  updateDoc: (docId, body) => request("PUT", `/docs/${docId}`, body),
+  deleteDoc: (docId) => request("DELETE", `/docs/${docId}`),
+  aiDraftDoc: (docId) => request("POST", `/docs/${docId}/ai-draft`),
 };

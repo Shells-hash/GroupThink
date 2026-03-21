@@ -6,6 +6,7 @@ import { renderGroupsSidebar, showCreateGroupModal } from "./views/groups.js";
 import { renderThreadSidebar, showCreateThreadModal } from "./views/thread-list.js";
 import { renderChat } from "./views/chat.js";
 import { renderPlan } from "./views/plan.js";
+import { renderDocs } from "./views/docs.js";
 import { disconnectWs } from "./ws.js";
 
 // ── App shell template ──────────────────────────────────────────────────────
@@ -137,6 +138,16 @@ route("/groups/:groupId/threads/:threadId", async ({ groupId, threadId }) => {
 
   state.activeThread = state.threads.find((t) => t.id === parseInt(threadId)) || null;
   await renderChat(groupId, threadId);
+});
+
+route("/groups/:groupId/threads/:threadId/docs", async ({ groupId, threadId }) => {
+  if (!(await requireAuth())) return navigate("/login");
+  renderShell();
+  if (!state.groups.length) state.groups = await api.getGroups();
+  state.activeGroup = state.groups.find((g) => g.id === parseInt(groupId)) || null;
+  await renderGroupsSidebar();
+  await renderThreadSidebar(groupId);
+  await renderDocs(groupId, threadId);
 });
 
 route("/groups/:groupId/threads/:threadId/plan", async ({ groupId, threadId }) => {
